@@ -1,0 +1,86 @@
+name: Build Image
+on:
+  push:
+    branches:
+      - main
+  schedule:
+   - cron: 40 3 * * 0
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-24.04 # uses podman from 24.04 or later
+    env:
+      REGISTRY: ghcr.io
+      IMAGE: ghcr.io/${{ github.repository_owner }}/fcos-zfs
+      IMGCACHE_PATH: image_cache.tar
+      # building using docker format is required to make builds
+      # find cached build layers after a save/load cycle
+      BUILDAH_FORMAT: docker
+    steps:
+      - env:
+          USERNAME: ${{ github.actor }}
+          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: printenv PASSWORD | podman login -v ${{ env.REGISTRY }} -u "$USERNAME" --password-stdin
+
+      - id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          # we can't precalculate the hash for a key so
+          # set an invalid key and fall back to the most recent cache
+          key: image-cache-INVALID
+          restore-keys: image-cache-
+          path: ${{ env.IMGCACHE_PATH }}
+
+      - name: Import images from cache
+        # skip step if no cache was restored
+        if: steps.restore-cache.outputs.cache-matched-key != ''
+        continue-on-error: true
+        run: |
+          podman load -i "${IMGCACHE_PATH:?}" \
+            || echo "::warning::Failure while importing images from cache"
+          echo
+          echo "Image Status:"
+          podman image list
+
+      - uses: actions/checkout@v4
+
+      # TODO: switch to --pull=newer once supported https://github.com/containers/podman/issues/22845
+      - run:
+          podman build
+          --pull=always
+          --build-arg MAJOR_VER=$(podman run --rm -i quay.io/fedora/fedora-coreos:stable sh -c '. /etc/os-release && echo $VERSION_ID')
+          -t ${{ env.IMAGE }}
+          .
+
+      - run: podman push ${{ env.IMAGE }}
+
+      - if: ${{ !cancelled() }} # runs even if previous steps failed
+        run: podman logout ${{ env.REGISTRY }}
+
+      - id: export-cache
+        name: Export images to cache
+        continue-on-error: true
+        run: |
+          echo "Existing Images:"
+          podman image list
+          echo
+          echo "Saving Images:"
+          rm -f "${IMGCACHE_PATH:?}"
+          {
+            # build cache (dangling or intermediate images that have labeled root ancestors)
+            for img in $(podman image list -q --filter dangling=true) $(podman image list -q --filter intermediate=true); do
+              root=$( i="$img" t="$i"; while [ -n "$i" ]; do t="$i" i="$(podman image inspect -f '{{ .Parent }}' "$i")"; done; echo "$t"; )
+              [ "$(podman image inspect -f '{{ len .RepoTags }}' "$root")" -gt 0 ] && echo "$img"
+            done
+            # labeled images
+            podman image list --filter dangling=false --format '{{ range .Names }}{{ . }} {{ end }}' | xargs -n 1 | sort -u
+          } \
+            | tee /dev/stderr \
+            | xargs podman save -m -o "${IMGCACHE_PATH:?}" \
+            || echo "::error::Failure while exporting images to cache"
+
+      - uses: actions/cache/save@v4
+        if: steps.export-cache.outcome == 'success' && !endsWith(steps.restore-cache.outputs.cache-matched-key, hashFiles(env.IMGCACHE_PATH))
+        with:
+          key: image-cache-${{ hashFiles(env.IMGCACHE_PATH) }}
+          path: ${{ env.IMGCACHE_PATH }}
