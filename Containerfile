@@ -8,15 +8,20 @@ FROM registry.fedoraproject.org/fedora:${MAJOR_VER} AS build
 COPY --from=fcos-query /kver.txt /kver.txt
 RUN set -eux; \
 	dnf install -y fedora-repos-archive https://zfsonlinux.org/fedora/zfs-release-2-5$(rpm --eval "%{dist}").noarch.rpm; \
-	dnf install -y kernel{,-modules,-devel}-$(cat /kver.txt) rpm-build \
-		zfs-dkms \
+	dnf install -y kernel-devel-$(cat /kver.txt) rpm-build \
 		libaio-devel libattr-devel libblkid-devel libffi-devel libtirpc-devel \
 		libudev-devel libuuid-devel ncompress python3-cffi python3-devel \
 		python3-packaging python3-setuptools;
 RUN set -eux; \
+	dnf install -y --downloadonly --downloaddir /tmp zfs-dkms; \
+	rpm -i --nodeps \
+		/tmp/zfs-dkms*.rpm \
+		/tmp/systemd*.rpm
+ARG BUILD_JOBS=
+RUN set -eux; \
 	cd /usr/src/zfs-$(rpm -q zfs-dkms --queryformat '%{VERSION}'); \
 	./configure --with-config=kernel --with-linux{,-obj}=/usr/src/kernels/$(cat /kver.txt); \
-	make -j $(nproc) rpm-utils rpm-kmod; \
+	make -j ${BUILD_JOBS:-$(nproc)} rpm-utils rpm-kmod; \
 	rm -fv *-devel-*.rpm *-debug*.rpm zfs-test-*.rpm *.src.rpm; \
 	mkdir /rpms; \
 	mv *.rpm /rpms/
