@@ -36,3 +36,8 @@ RUN set -eux; \
 	depmod -a $(rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}'); \
 	echo zfs > /etc/modules-load.d/zfs.conf; \
 	ostree container commit
+
+COPY fcos-zfs-autoupdate.* /usr/lib/systemd/system/
+RUN set -eux; \
+	systemctl mask zincati; \
+	systemctl enable fcos-zfs-autoupdate.timer
