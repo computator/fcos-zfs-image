@@ -1,0 +1,20 @@
+variant: fcos
+version: 1.5.0
+systemd:
+  units:
+  - name: fcos-firstboot-rebase.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Rebase OS to fcos-zfs image
+      ConditionFirstBoot=true
+      Before=first-boot-complete.target
+      Wants=first-boot-complete.target
+      After=network-online.target
+      After=ignition-diskful.target
+
+      [Service]
+      ExecStart=rpm-ostree rebase --reboot ostree-unverified-registry:ghcr.io/computator/fcos-zfs
+
+      [Install]
+      WantedBy=multi-user.target
