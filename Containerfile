@@ -40,4 +40,5 @@ RUN set -eux; \
 COPY fcos-zfs-autoupdate.* /usr/lib/systemd/system/
 RUN set -eux; \
 	systemctl mask zincati; \
-	systemctl enable fcos-zfs-autoupdate.timer
+	systemctl enable fcos-zfs-autoupdate.timer; \
+	ostree container commit
