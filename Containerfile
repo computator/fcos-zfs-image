@@ -2,11 +2,12 @@ FROM quay.io/fedora/fedora-coreos:stable AS fcos-query
 
 RUN rpm -q kernel --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}' > /kver.txt
 
-# podman run --rm -i quay.io/fedora/fedora-coreos:stable sh -c '. /etc/os-release && echo $VERSION_ID'
+# podman run --rm -i --pull=always quay.io/fedora/fedora-coreos:stable sh -c '. /etc/os-release && echo $VERSION_ID'
 ARG MAJOR_VER
 FROM registry.fedoraproject.org/fedora:${MAJOR_VER} AS build
 COPY --from=fcos-query /kver.txt /kver.txt
 RUN set -eux; \
+	# https://github.com/zfsonlinux/zfsonlinux.github.com/tree/master/fedora
 	dnf install -y fedora-repos-archive https://zfsonlinux.org/fedora/zfs-release-2-5$(rpm --eval "%{dist}").noarch.rpm; \
 	dnf install -y kernel-devel-$(cat /kver.txt) rpm-build \
 		libaio-devel libattr-devel libblkid-devel libffi-devel libtirpc-devel \
