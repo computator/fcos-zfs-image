@@ -49,7 +49,7 @@ jobs:
       - run:
           podman build
           --pull=always
-          --build-arg MAJOR_VER=$(podman run --rm -i quay.io/fedora/fedora-coreos:stable sh -c '. /etc/os-release && echo $VERSION_ID')
+          --build-arg MAJOR_VER=$(podman run --rm --pull=always -i quay.io/fedora/fedora-coreos:stable sh -c '. /etc/os-release && echo $VERSION_ID')
           -t ${{ env.IMAGE }}
           .
 
