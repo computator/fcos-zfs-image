@@ -14,7 +14,7 @@ RUN set -eux; \
 		libudev-devel libuuid-devel ncompress python3-cffi python3-devel \
 		python3-packaging python3-setuptools;
 RUN set -eux; \
-	dnf install -y --downloadonly --downloaddir /tmp zfs-dkms; \
+	dnf download -y --resolve --destdir /tmp zfs-dkms; \
 	rpm -i --nodeps \
 		/tmp/zfs-dkms*.rpm \
 		/tmp/systemd*.rpm
