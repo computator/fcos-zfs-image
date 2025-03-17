@@ -2,4 +2,5 @@
 Description=Automatic system image updates service
 
 [Service]
+# ExecCondition=nm-online -t 10
 ExecStart=rpm-ostree upgrade --reboot
