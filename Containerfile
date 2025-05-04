@@ -8,7 +8,7 @@ FROM registry.fedoraproject.org/fedora:${MAJOR_VER} AS build
 COPY --from=fcos-query /kver.txt /kver.txt
 RUN set -eux; \
 	# https://github.com/zfsonlinux/zfsonlinux.github.com/tree/master/fedora
-	dnf install -y fedora-repos-archive https://zfsonlinux.org/fedora/zfs-release-2-6$(rpm --eval "%{dist}").noarch.rpm; \
+	dnf install -y fedora-repos-archive https://zfsonlinux.org/fedora/zfs-release-2-8$(rpm --eval "%{dist}").noarch.rpm; \
 	dnf install -y kernel-devel-$(cat /kver.txt) rpm-build \
 		libaio-devel libattr-devel libblkid-devel libffi-devel libtirpc-devel \
 		libudev-devel libuuid-devel ncompress python3-cffi python3-devel \
